@@ -142,9 +142,32 @@ class TechSidebar extends React.Component {
     }
   }
 
+  setEdgeColor(edgecolor, node) {
+    edges
+      .filter((edge) => edge.from == node.dataName)
+      .forEach((NodeEdge) => {
+        data.edges.updateOnly({
+          id: NodeEdge.id,
+          color: {
+            color: edgecolor,
+          },
+        });
+        NodeEdge.color = { color: edgecolor };
+      });
+    lateEdges
+      .filter((edge) => edge.from == node.dataName)
+      .forEach((NodeEdge) => {
+        data.edges.updateOnly({
+          id: NodeEdge.id,
+          color: { color: edgecolor },
+        });
+        NodeEdge.color = { color: edgecolor };
+      });
+  }
+
   render() {
     const node = this.state.node;
-    const data = this.props.data;
+    const propsdata = this.props.data;
 
     if (!node || !node.dataName) {
       return React.createElement("h2", null, "Error!");
@@ -200,11 +223,23 @@ class TechSidebar extends React.Component {
         onClick: (event) => {
           if (node.researchDone) {
             node.researchDone = false;
+            data.nodes.updateOnly({ id: node.dataName, borderWidth: 0 });
+            nodes[node.id].borderWidth = 0;
+            this.setEdgeColor("grey", node);
           } else {
             node.researchDone = true;
-            this.getAncestorTechs(node).forEach(
-              (tech) => (tech.researchDone = true)
-            );
+            data.nodes.updateOnly({ id: node.dataName, borderWidth: 7 });
+            nodes[node.id].borderWidth = 7;
+            this.setEdgeColor("green", node);
+            this.getAncestorTechs(node).forEach((node) => {
+              node.researchDone = true;
+              data.nodes.updateOnly({
+                id: node.dataName,
+                borderWidth: 5,
+              });
+              nodes[node.id].borderWidth = 0;
+              this.setEdgeColor("green", node);
+            });
           }
           this.setState({ node: node });
         },
@@ -456,13 +491,13 @@ class TechSidebar extends React.Component {
     }
 
     let completionLabel, completionText;
-    if (data[node.dataName] && data[node.dataName].description) {
+    if (propsdata[node.dataName] && propsdata[node.dataName].description) {
       completionLabel = React.createElement("h4", null, "Completion Text");
 
       completionText = React.createElement(
         "p",
         null,
-        data[node.dataName].description
+        propsdata[node.dataName].description
       );
     }
 

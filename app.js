@@ -27,14 +27,13 @@ function draw() {
       enabled: false,
     },
     nodes: {
-      borderWidth: 5,
+      borderWidth: 0,
       borderWidthSelected: 5,
       size: 20,
       color: {
-        background: "#111",
+        border: "green",
         highlight: {
           border: "blue",
-          background: "#111",
         },
       },
       font: {
@@ -47,14 +46,13 @@ function draw() {
       shapeProperties: {
         useBorderWithImage: true,
       },
-      imagePadding: 5,
     },
     edges: {
       color: {
         color: "gray",
         highlight: "blue",
       },
-      width: 0.5,
+      width: 1,
       selectionWidth: 5,
       arrows: {
         to: {
@@ -318,16 +316,15 @@ function clearTree() {
 }
 
 function parseDefaults(callback) {
-  clearTree();
   setTimeout(() => {
-    techTree = techs.concat(projects);
-
-    parseNode(techTree);
+    if (nodes.length == 0) {
+      techTree = techs.concat(projects);
+      parseNode(techTree);
+    }
     data.nodes = new vis.DataSet(nodes);
     data.edges = new vis.DataSet(edges);
 
     draw();
-
     initSearchBox();
 
     if (callback) callback();
@@ -335,10 +332,9 @@ function parseDefaults(callback) {
 }
 
 function parseTechsOnly(callback) {
-  clearTree();
   setTimeout(() => {
-    parseNode(techs);
-    data.nodes = new vis.DataSet(nodes);
+    onlyPrjNodes = nodes.filter((node) => node.project != true);
+    data.nodes = new vis.DataSet(onlyPrjNodes);
     data.edges = new vis.DataSet(edges);
 
     draw();
@@ -410,29 +406,7 @@ function getTechIconFile(techCategory) {
   } else if (techCategory === "Xenology") {
     shortName = "xeno";
   }
-  return "icons/tech_" + shortName + "_icon.png";
-}
-
-function getTechBorderColor(techCategory) {
-  if (techCategory === "Energy") {
-    return "#ff7008";
-  } else if (techCategory === "InformationScience") {
-    return "#e87474";
-  } else if (techCategory === "LifeScience") {
-    return "#3cc478";
-  } else if (techCategory === "Materials") {
-    return "#fbcb4b";
-  } else if (techCategory === "MilitaryScience") {
-    return "#393c3c";
-  } else if (techCategory === "SocialScience") {
-    return "#74bddc";
-  } else if (techCategory === "SpaceScience") {
-    return "#6270d0";
-  } else if (techCategory === "Xenology") {
-    return "#906cdc";
-  }
-
-  return "black";
+  return "icons/tech_" + shortName + "_icon_circle.png";
 }
 
 function parseNode(nodeType, dumpAllEdges) {
@@ -450,7 +424,7 @@ function parseNode(nodeType, dumpAllEdges) {
       shape: "circularImage",
       image: getTechIconFile(tech.techCategory),
       level: determineLevel(tech, nodeType),
-      color: { border: getTechBorderColor(tech.techCategory) },
+      project: tech.isProject,
     });
 
     let prereqCopy = [];
