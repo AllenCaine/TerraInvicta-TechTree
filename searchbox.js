@@ -12,6 +12,7 @@ class Searchbox extends React.Component {
     return React.createElement(
       MaterialUI.Paper,
       { elevation: 3, id: "searchBox" },
+      //SEARCH BOX
       React.createElement(MaterialUI.Autocomplete, {
         options: this.state.results,
         renderInput: (params) => {
@@ -45,8 +46,9 @@ class Searchbox extends React.Component {
           }
         },
       }),
+      //SHOW PROJECTS
       React.createElement(MaterialUI.FormControlLabel, {
-        label: "Show Projects",
+        label: "Projects",
         control: React.createElement(MaterialUI.Switch, {
           defaultChecked: true,
           onChange: (event) => {
@@ -61,7 +63,95 @@ class Searchbox extends React.Component {
           },
         }),
         id: "showProjects",
-      })
+      }),
+      //PARSE SAVE FILE
+      React.createElement(
+        MaterialUI.Button,
+        {
+          variant: "contained",
+          onClick: (event) => {
+            let input = document.createElement("input");
+            input.type = "file";
+            input.onchange = (_) => {
+              let reader = new FileReader();
+
+              reader.onload = (event) => {
+                let compressedData = new Uint8Array(event.target.result);
+                let saveData, saveState, finishedTechs, finishedProjects;
+
+                try {
+                  saveData = pako.ungzip(compressedData, { to: "string" });
+                } catch {
+                  alert(
+                    "Failed to unpack save data - it should be a gzipped file with a '.gz' extension"
+                  );
+                  return;
+                }
+                try {
+                  saveState = JSON5.parse(saveData);
+                  finishedTechs =
+                    saveState.gamestates[
+                      "PavonisInteractive.TerraInvicta.TIGlobalResearchState"
+                    ][0].Value.finishedTechsNames;
+                  finishedProjects =
+                    saveState.gamestates[
+                      "PavonisInteractive.TerraInvicta.TIFactionState"
+                    ][0].Value.finishedProjectNames;
+                } catch {
+                  alert(
+                    "Failed to parse JSON save data - your save file might be corrupted?"
+                  );
+                  return;
+                }
+
+                let finishedTechsAndProjects = new Set(
+                  finishedTechs.concat(finishedProjects)
+                );
+                techTree.forEach((tech, index) => {
+                  if (finishedTechsAndProjects.has(tech.dataName)) {
+                    tech.researchDone = true;
+                    finishedTechsAndProjects.delete(tech.dataName);
+                  } else {
+                    tech.researchDone = false;
+                  }
+                });
+
+                if (finishedTechsAndProjects.size != 0) {
+                  alert(
+                    "Some technologies weren't recognised:\n" +
+                      Array.from(finishedTechsAndProjects).join("\n")
+                  );
+                } else {
+                  alert(
+                    "Successfully loaded " +
+                      (finishedTechs.length + finishedProjects.length) +
+                      " techs"
+                  );
+                }
+                parseDefaults();
+                saveTechTree();
+              };
+
+              reader.readAsArrayBuffer(input.files[0]);
+            };
+            input.click();
+          },
+          className: "readFileButton",
+          id: "readFileButton",
+        },
+        "Load Save"
+      ),
+      React.createElement(
+        MaterialUI.Button,
+        {
+          variant: "contained",
+          onClick: (event) => {
+            clearTree();
+          },
+          id: "btnDel",
+        },
+        "Delete"
+      )
     );
   }
 }

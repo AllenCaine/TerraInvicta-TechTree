@@ -1,5 +1,5 @@
 let network = null,
-  data = [];
+  dataSet = [];
 let nodes = [],
   lateNodes = [],
   edges = [],
@@ -52,7 +52,7 @@ function draw() {
         color: "gray",
         highlight: "blue",
       },
-      width: 1,
+      width: 0.5,
       selectionWidth: 5,
       arrows: {
         to: {
@@ -61,17 +61,20 @@ function draw() {
       },
     },
   };
-  network = new vis.Network(container, data, options);
 
-  data.nodes.add(lateNodes);
+  network = new vis.Network(container, dataSet, options);
 
+  dataSet.nodes.add(lateNodes);
+
+  //Save old node Positions
   let oldPositions = {};
   Object.values(network.body.nodes).forEach((node) => {
     oldPositions[node.id] = [node.x, node.y];
   });
 
-  data.edges.add(lateEdges);
+  dataSet.edges.add(lateEdges);
 
+  //Restore old node Positions, after lateEdges are added
   Object.keys(network.body.nodes).forEach((node) => {
     network.nodesHandler.body.nodes[node].x = oldPositions[node][0];
     network.nodesHandler.body.nodes[node].y = oldPositions[node][1];
@@ -93,6 +96,7 @@ function draw() {
   let MIN_ZOOM = 0.35;
   let MAX_ZOOM = 2.0;
   let lastZoomPosition = { x: 0, y: 0 };
+
   network.on("zoom", function (params) {
     let scale = network.getScale();
     if (scale <= MIN_ZOOM) {
@@ -109,9 +113,7 @@ function draw() {
       lastZoomPosition = network.getViewPosition();
     }
   });
-  network.moveTo({
-    scale: 0.35,
-  });
+  network.moveTo({ scale: 0.35 });
 
   network.on("dragEnd", function (params) {
     lastZoomPosition = network.getViewPosition();
@@ -305,24 +307,61 @@ function initSearchBox() {
 function clearTree() {
   document.getElementById("loading").style.display = "block";
 
-  if (data.nodes) data.nodes.clear();
-  if (data.edges) data.edges.clear();
+  if (dataSet.nodes) dataSet.nodes.clear();
+  if (dataSet.edges) dataSet.edges.clear();
 
   nodes = [];
   lateNodes = [];
 
   edges = [];
   lateEdges = [];
+
+  localStorage.removeItem("ResearchedTechs");
+
+  techTree.forEach((tech) => (tech.researchDone = false));
+  parseDefaults();
+}
+
+function markNodesResearchDone() {
+  const ResearchDoneTechs = techTree
+    .filter((tech) => tech.researchDone)
+    .forEach((tech, index) => {
+      try {
+        nodes[tech.nodeID].borderWidth = 7;
+      } catch {
+        const lateNode = lateNodes.filter(
+          (node) => node.id == tech.dataName
+        )[0];
+        lateNode.borderWidth = 7;
+      }
+    });
+}
+
+function loadResearchDoneFromStorage() {
+  if (!localStorage.ResearchedTechs) {
+    return;
+  }
+  const savedResearchedTechs = JSON.parse(localStorage.ResearchedTechs);
+
+  savedResearchedTechs.forEach((researchedTech) => {
+    techTree.find(
+      (tech) => tech.dataName === researchedTech
+    ).researchDone = true;
+  });
 }
 
 function parseDefaults(callback) {
   setTimeout(() => {
     if (nodes.length == 0) {
       techTree = techs.concat(projects);
+
+      loadResearchDoneFromStorage();
+
       parseNode(techTree);
     }
-    data.nodes = new vis.DataSet(nodes);
-    data.edges = new vis.DataSet(edges);
+    markNodesResearchDone();
+    dataSet.nodes = new vis.DataSet(nodes);
+    dataSet.edges = new vis.DataSet(edges);
 
     draw();
     initSearchBox();
@@ -334,8 +373,8 @@ function parseDefaults(callback) {
 function parseTechsOnly(callback) {
   setTimeout(() => {
     onlyPrjNodes = nodes.filter((node) => node.project != true);
-    data.nodes = new vis.DataSet(onlyPrjNodes);
-    data.edges = new vis.DataSet(edges);
+    dataSet.nodes = new vis.DataSet(onlyPrjNodes);
+    dataSet.edges = new vis.DataSet(edges);
 
     draw();
 
@@ -347,8 +386,8 @@ function parseSpecifiedNodes(group, callback) {
   clearTree();
   setTimeout(() => {
     parseNode(group, group.length < 20);
-    data.nodes = new vis.DataSet(nodes);
-    data.edges = new vis.DataSet(edges);
+    dataSet.nodes = new vis.DataSet(nodes);
+    dataSet.edges = new vis.DataSet(edges);
 
     draw();
 
@@ -410,12 +449,13 @@ function getTechIconFile(techCategory) {
 }
 
 function parseNode(nodeType, dumpAllEdges) {
-  nodeType.forEach((tech) => {
+  nodeType.forEach((tech, index) => {
     let nodeBucket = false;
     if (tech.repeatable || tech.endGameTech) {
       nodeBucket = lateNodes;
     } else {
       nodeBucket = nodes;
+      tech.nodeID = nodeBucket.length;
     }
 
     nodeBucket.push({
@@ -425,6 +465,7 @@ function parseNode(nodeType, dumpAllEdges) {
       image: getTechIconFile(tech.techCategory),
       level: determineLevel(tech, nodeType),
       project: tech.isProject,
+      techTreeIndex: index,
     });
 
     let prereqCopy = [];

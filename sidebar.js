@@ -142,27 +142,34 @@ class TechSidebar extends React.Component {
     }
   }
 
-  setEdgeColor(edgecolor, node) {
-    edges
-      .filter((edge) => edge.from == node.dataName)
-      .forEach((NodeEdge) => {
-        data.edges.updateOnly({
-          id: NodeEdge.id,
-          color: {
-            color: edgecolor,
-          },
-        });
-        NodeEdge.color = { color: edgecolor };
+  toggleResearchDone(event) {
+    const node = this.state.node;
+    const tech = this.findTechByName(node.dataName);
+    if (tech.researchDone) {
+      tech.researchDone = false;
+      dataSet.nodes.updateOnly({ id: tech.dataName, borderWidth: 0 });
+    } else {
+      tech.researchDone = true;
+      dataSet.nodes.updateOnly({ id: tech.dataName, borderWidth: 7 });
+      let UpdateQueue = [];
+      this.getAncestorTechs(tech).forEach((AncestorTech, index) => {
+        AncestorTech.researchDone = true;
+        UpdateQueue[index] = { id: AncestorTech.dataName, borderWidth: 7 };
       });
-    lateEdges
-      .filter((edge) => edge.from == node.dataName)
-      .forEach((NodeEdge) => {
-        data.edges.updateOnly({
-          id: NodeEdge.id,
-          color: { color: edgecolor },
-        });
-        NodeEdge.color = { color: edgecolor };
+      dataSet.nodes.updateOnly(UpdateQueue);
+    }
+    this.setState({ node: node });
+    this.saveTechTree();
+  }
+
+  saveTechTree() {
+    let trimmedTechTree = [];
+    techTree
+      .filter((tech) => tech.researchDone)
+      .forEach((tech, index) => {
+        trimmedTechTree[index] = tech.dataName;
       });
+    localStorage.ResearchedTechs = JSON.stringify(trimmedTechTree);
   }
 
   render() {
@@ -221,27 +228,7 @@ class TechSidebar extends React.Component {
       {
         variant: "contained",
         onClick: (event) => {
-          if (node.researchDone) {
-            node.researchDone = false;
-            data.nodes.updateOnly({ id: node.dataName, borderWidth: 0 });
-            nodes[node.id].borderWidth = 0;
-            this.setEdgeColor("grey", node);
-          } else {
-            node.researchDone = true;
-            data.nodes.updateOnly({ id: node.dataName, borderWidth: 7 });
-            nodes[node.id].borderWidth = 7;
-            this.setEdgeColor("green", node);
-            this.getAncestorTechs(node).forEach((node) => {
-              node.researchDone = true;
-              data.nodes.updateOnly({
-                id: node.dataName,
-                borderWidth: 5,
-              });
-              nodes[node.id].borderWidth = 0;
-              this.setEdgeColor("green", node);
-            });
-          }
-          this.setState({ node: node });
+          this.toggleResearchDone(event);
         },
         className: "topTechbarButton",
         color: node.researchDone ? "error" : "success",
